@@ -78,4 +78,18 @@ class ProductController extends Controller
 
         return to_route('products.index');
     }
+
+    public function destroy(
+        Request $request,
+        Product $product,
+    ): RedirectResponse {
+        abort_unless(
+            $product->user_id === $request->user()->id,
+            403,
+        );
+
+        $product->delete();
+
+        return to_route('products.index');
+    }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from '../../../../vendor/tightenco/ziggy';
+import { ref } from 'vue';
 
 interface Product {
     id: number;
@@ -39,6 +40,30 @@ const formatDate = (date: string): string => {
         month: '2-digit',
         day: '2-digit',
     }).format(new Date(date));
+};
+
+const deletingProductId = ref<number | null>(null);
+
+const deleteProduct = (product: Product): void => {
+    const confirmed = window.confirm(
+        `Czy na pewno chcesz usunąć produkt „${product.name}”?`,
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    router.delete(route('products.destroy', product.id), {
+        preserveScroll: true,
+
+        onStart: () => {
+            deletingProductId.value = product.id;
+        },
+
+        onFinish: () => {
+            deletingProductId.value = null;
+        },
+    });
 };
 </script>
 
@@ -187,12 +212,27 @@ const formatDate = (date: string): string => {
                                 </td>
 
                                 <td class="px-4 py-4 text-right">
-                                    <Link
-                                        :href="route('products.edit', product.id)"
-                                        class="text-sm font-medium text-gray-700 hover:text-gray-950"
-                                    >
-                                        Edytuj
-                                    </Link>
+                                    <div class="flex items-center justify-end gap-3">
+                                        <Link
+                                            :href="route('products.edit', product.id)"
+                                            class="text-sm font-medium text-gray-700 hover:text-gray-950"
+                                        >
+                                            Edytuj
+                                        </Link>
+
+                                        <button
+                                            type="button"
+                                            class="text-sm font-medium text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="deletingProductId === product.id"
+                                            @click="deleteProduct(product)"
+                                        >
+                                            {{
+                                                deletingProductId === product.id
+                                                    ? 'Usuwanie...'
+                                                    : 'Usuń'
+                                            }}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

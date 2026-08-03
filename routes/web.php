@@ -34,5 +34,10 @@ Route::put('/products/{product}', [ProductController::class, 'update'])
     ->whereNumber('product')
     ->name('products.update');
 
+Route::delete('/products/{product}', [ProductController::class, 'destroy'])
+    ->middleware(['auth', 'verified'])
+    ->whereNumber('product')
+    ->name('products.destroy');
+
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
