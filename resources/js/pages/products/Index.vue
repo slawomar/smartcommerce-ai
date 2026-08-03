@@ -134,6 +134,12 @@ const formatDate = (date: string): string => {
                                 >
                                     Utworzono
                                 </th>
+
+                                <th
+                                    class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-600"
+                                >
+                                    Akcje
+                                </th>
                             </tr>
                         </thead>
 
@@ -178,6 +184,15 @@ const formatDate = (date: string): string => {
 
                                 <td class="px-4 py-4 text-sm text-gray-600">
                                     {{ formatDate(product.created_at) }}
+                                </td>
+
+                                <td class="px-4 py-4 text-right">
+                                    <Link
+                                        :href="route('products.edit', product.id)"
+                                        class="text-sm font-medium text-gray-700 hover:text-gray-950"
+                                    >
+                                        Edytuj
+                                    </Link>
                                 </td>
                             </tr>
                         </tbody>

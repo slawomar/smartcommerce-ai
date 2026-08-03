@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
+use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -42,6 +44,37 @@ class ProductController extends Controller
         $request->user()
             ->products()
             ->create($request->validated());
+
+        return to_route('products.index');
+    }
+
+    public function edit(
+        Request $request,
+        Product $product,
+    ): Response {
+        abort_unless(
+            $product->user_id === $request->user()->id,
+            403,
+        );
+
+        return Inertia::render('products/Edit', [
+            'product' => $product->only([
+                'id',
+                'name',
+                'sku',
+                'description',
+                'price',
+                'stock',
+                'is_active',
+            ]),
+        ]);
+    }
+
+    public function update(
+        UpdateProductRequest $request,
+        Product $product,
+    ): RedirectResponse {
+        $product->update($request->validated());
 
         return to_route('products.index');
     }

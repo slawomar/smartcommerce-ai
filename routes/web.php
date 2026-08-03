@@ -24,5 +24,15 @@ Route::post('/products', [ProductController::class, 'store'])
     ->middleware(['auth', 'verified'])
     ->name('products.store');
 
+Route::get('/products/{product}/edit', [ProductController::class, 'edit'])
+    ->middleware(['auth', 'verified'])
+    ->whereNumber('product')
+    ->name('products.edit');
+
+Route::put('/products/{product}', [ProductController::class, 'update'])
+    ->middleware(['auth', 'verified'])
+    ->whereNumber('product')
+    ->name('products.update');
+
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
