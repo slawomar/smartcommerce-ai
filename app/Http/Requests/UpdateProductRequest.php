@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use App\Models\Product;
 
 class UpdateProductRequest extends FormRequest
 {
