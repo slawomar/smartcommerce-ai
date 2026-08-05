@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { route } from 'ziggy-js';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 interface Product {
     id: number;
@@ -25,30 +25,68 @@ interface PaginatedProducts {
 
 interface ProductFilters {
     search: string;
+    status: string;
+    stock: string;
+}
+
+interface ProductFilterOptions {
+    lowStockThreshold: number;
 }
 
 const props = defineProps<{
     products: PaginatedProducts;
     filters: ProductFilters;
+    filterOptions: ProductFilterOptions;
 }>();
 
 const search = ref(props.filters.search);
+const status = ref(props.filters.status);
+const stock = ref(props.filters.stock);
 
 watch(
-    () => props.filters.search,
-    (value) => {
-        search.value = value;
+    () => [
+        props.filters.search,
+        props.filters.status,
+        props.filters.stock,
+    ] as const,
+    ([searchValue, statusValue, stockValue]) => {
+        search.value = searchValue;
+        status.value = statusValue;
+        stock.value = stockValue;
     },
 );
 
-const submitSearch = (): void => {
+const hasActiveFilters = computed(() => {
+    return (
+        props.filters.search !== ''
+        || props.filters.status !== ''
+        || props.filters.stock !== ''
+    );
+});
+
+const buildFilterQuery = (): Record<string, string> => {
+    const query: Record<string, string> = {};
     const normalizedSearch = search.value.trim();
 
+    if (normalizedSearch !== '') {
+        query.search = normalizedSearch;
+    }
+
+    if (status.value !== '') {
+        query.status = status.value;
+    }
+
+    if (stock.value !== '') {
+        query.stock = stock.value;
+    }
+
+    return query;
+};
+
+const applyFilters = (): void => {
     router.get(
         route('products.index'),
-        normalizedSearch !== ''
-            ? { search: normalizedSearch }
-            : {},
+        buildFilterQuery(),
         {
             preserveState: true,
             preserveScroll: true,
@@ -57,8 +95,10 @@ const submitSearch = (): void => {
     );
 };
 
-const clearSearch = (): void => {
+const clearFilters = (): void => {
     search.value = '';
+    status.value = '';
+    stock.value = '';
 
     router.get(
         route('products.index'),
@@ -130,6 +170,11 @@ const deleteProduct = (product: Product): void => {
                             {{ products.total }}
                         </template>
 
+                        <template v-else-if="hasActiveFilters">
+                            Wyniki po zastosowaniu filtrów:
+                            {{ products.total }}
+                        </template>
+
                         <template v-else>
                             Produkty przypisane do zalogowanego użytkownika:
                             {{ products.total }}
@@ -156,40 +201,106 @@ const deleteProduct = (product: Product): void => {
 
             <form
                 class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                @submit.prevent="submitSearch"
+                @submit.prevent="applyFilters"
             >
-                <label
-                    for="product-search"
-                    class="mb-2 block text-sm font-medium text-gray-700"
-                >
-                    Wyszukaj produkt
-                </label>
+                <div class="grid gap-4 lg:grid-cols-4">
+                    <div class="lg:col-span-2">
+                        <label
+                            for="product-search"
+                            class="mb-2 block text-sm font-medium text-gray-700"
+                        >
+                            Wyszukaj produkt
+                        </label>
 
-                <div class="flex flex-col gap-3 sm:flex-row">
-                    <input
-                        id="product-search"
-                        v-model="search"
-                        type="search"
-                        name="search"
-                        placeholder="Nazwa, SKU lub opis produktu"
-                        autocomplete="off"
-                        class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
-                    />
+                        <input
+                            id="product-search"
+                            v-model="search"
+                            type="search"
+                            name="search"
+                            placeholder="Nazwa, SKU lub opis produktu"
+                            autocomplete="off"
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                        />
+                    </div>
 
+                    <div>
+                        <label
+                            for="product-status"
+                            class="mb-2 block text-sm font-medium text-gray-700"
+                        >
+                            Status
+                        </label>
+
+                        <select
+                            id="product-status"
+                            v-model="status"
+                            name="status"
+                            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                        >
+                            <option value="">
+                                Wszystkie statusy
+                            </option>
+
+                            <option value="active">
+                                Aktywne
+                            </option>
+
+                            <option value="inactive">
+                                Nieaktywne
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            for="product-stock"
+                            class="mb-2 block text-sm font-medium text-gray-700"
+                        >
+                            Stan magazynowy
+                        </label>
+
+                        <select
+                            id="product-stock"
+                            v-model="stock"
+                            name="stock"
+                            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                        >
+                            <option value="">
+                                Wszystkie stany
+                            </option>
+
+                            <option value="available">
+                                Dostępne — powyżej
+                                {{ filterOptions.lowStockThreshold }} szt.
+                            </option>
+
+                            <option value="low">
+                                Niski stan — 1–{{ filterOptions.lowStockThreshold }}
+                                szt.
+                            </option>
+
+                            <option value="out">
+                                Brak na magazynie — 0 szt.
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-3">
                     <button
                         type="submit"
                         class="rounded-md bg-gray-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
                     >
-                        Szukaj
+                        Zastosuj filtry
                     </button>
 
                     <button
-                        v-if="filters.search"
+                        v-if="hasActiveFilters"
                         type="button"
                         class="rounded-md border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                        @click="clearSearch"
+                        @click="clearFilters"
                     >
-                        Wyczyść
+                        Wyczyść filtry
                     </button>
                 </div>
             </form>
@@ -198,22 +309,21 @@ const deleteProduct = (product: Product): void => {
                 v-if="products.data.length === 0"
                 class="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center"
             >
-                <template v-if="filters.search">
-                    <h2 class="text-lg font-medium">
-                        Brak wyników
+                <template v-if="hasActiveFilters">
+    <h2 class="text-lg font-medium">
+        Brak wyników
                     </h2>
 
                     <p class="mt-2 text-sm text-gray-600">
-                        Nie znaleziono produktów pasujących do frazy
-                        „{{ filters.search }}”.
+                        Nie znaleziono produktów spełniających wybrane kryteria.
                     </p>
 
                     <button
                         type="button"
                         class="mt-4 text-sm font-medium text-gray-700 underline hover:text-gray-950"
-                        @click="clearSearch"
+                        @click="clearFilters"
                     >
-                        Wyczyść wyszukiwanie
+                        Wyczyść filtry
                     </button>
                 </template>
 
