@@ -14,6 +14,8 @@ class ProductController extends Controller
 {
     public function index(Request $request): Response
     {
+        $search = trim((string) $request->query('search', ''));
+
         $products = $request->user()
             ->products()
             ->select([
@@ -25,11 +27,23 @@ class ProductController extends Controller
                 'is_active',
                 'created_at',
             ])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            })
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('products/Index', [
             'products' => $products,
+            'filters' => [
+                'search' => $search,
+            ],
         ]);
     }
 

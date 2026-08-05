@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -53,6 +54,160 @@ class ProductControllerTest extends TestCase
                     ->where(
                         'products.data.0.name',
                         'Produkt użytkownika',
+                    ),
+            );
+    }
+
+    public function test_user_can_search_products_by_name_sku_and_description(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $productMatchingName = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa biurkowa',
+                'sku' => 'PRODUCT-001',
+                'description' => 'Oświetlenie do gabinetu.',
+            ]);
+
+        $productMatchingSku = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Oświetlenie sufitowe',
+                'sku' => 'LAMP-002',
+                'description' => 'Produkt do salonu.',
+            ]);
+
+        $productMatchingDescription = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt dekoracyjny',
+                'sku' => 'PRODUCT-003',
+                'description' => 'Nowoczesna lampa stojąca.',
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Krzesło biurowe',
+                'sku' => 'CHAIR-001',
+                'description' => 'Ergonomiczne krzesło.',
+            ]);
+
+        Product::factory()
+            ->for($otherUser)
+            ->create([
+                'name' => 'Lampa innego użytkownika',
+                'sku' => 'LAMP-FOREIGN-001',
+                'description' => 'Produkt nie może być widoczny.',
+            ]);
+
+        $expectedProductIds = [
+            $productMatchingName->id,
+            $productMatchingSku->id,
+            $productMatchingDescription->id,
+        ];
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'search' => 'lamp',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.search', 'lamp')
+                    ->where('products.total', 3)
+                    ->has('products.data', 3)
+                    ->where(
+                        'products.data',
+                        function (Collection $products) use ($expectedProductIds): bool {
+                            $actualProductIds = $products
+                                ->pluck('id')
+                                ->sort()
+                                ->values()
+                                ->all();
+
+                            $expectedProductIds = collect($expectedProductIds)
+                                ->sort()
+                                ->values()
+                                ->all();
+
+                            return $actualProductIds === $expectedProductIds;
+                        },
+                    ),
+            );
+    }
+
+    public function test_product_search_is_trimmed_and_returned_in_filters(): void
+    {
+        $user = User::factory()->create();
+
+        $product = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa Emilia',
+                'sku' => 'LAMP-001',
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Biurko drewniane',
+                'sku' => 'DESK-001',
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'search' => '  Lampa  ',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.search', 'Lampa')
+                    ->where('products.total', 1)
+                    ->has('products.data', 1)
+                    ->where('products.data.0.id', $product->id),
+            );
+    }
+
+    public function test_search_query_is_preserved_in_pagination_urls(): void
+    {
+        $user = User::factory()->create();
+
+        Product::factory()
+            ->count(11)
+            ->for($user)
+            ->create([
+                'name' => 'Lampa testowa',
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'search' => 'lamp',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('products.current_page', 1)
+                    ->where('products.total', 11)
+                    ->has('products.data', 10)
+                    ->where(
+                        'products.next_page_url',
+                        fn (?string $url): bool => $url !== null
+                            && str_contains($url, 'search=lamp'),
                     ),
             );
     }
