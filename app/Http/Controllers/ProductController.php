@@ -12,9 +12,32 @@ use Inertia\Response;
 
 class ProductController extends Controller
 {
+    private const LOW_STOCK_THRESHOLD = 5;
+
+    private const STATUS_FILTERS = [
+        'active',
+        'inactive',
+    ];
+
+    private const STOCK_FILTERS = [
+        'available',
+        'low',
+        'out',
+    ];
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('search', ''));
+        $status = trim((string) $request->query('status', ''));
+        $stock = trim((string) $request->query('stock', ''));
+
+        if (! in_array($status, self::STATUS_FILTERS, true)) {
+            $status = '';
+        }
+
+        if (! in_array($stock, self::STOCK_FILTERS, true)) {
+            $stock = '';
+        }
 
         $products = $request->user()
             ->products()
@@ -35,6 +58,33 @@ class ProductController extends Controller
                         ->orWhere('description', 'like', "%{$search}%");
                 });
             })
+            ->when(
+                $status === 'active',
+                fn ($query) => $query->where('is_active', true),
+            )
+            ->when(
+                $status === 'inactive',
+                fn ($query) => $query->where('is_active', false),
+            )
+            ->when(
+                $stock === 'available',
+                fn ($query) => $query->where(
+                    'stock',
+                    '>',
+                    self::LOW_STOCK_THRESHOLD,
+                ),
+            )
+            ->when(
+                $stock === 'low',
+                fn ($query) => $query->whereBetween('stock', [
+                    1,
+                    self::LOW_STOCK_THRESHOLD,
+                ]),
+            )
+            ->when(
+                $stock === 'out',
+                fn ($query) => $query->where('stock', 0),
+            )
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -43,6 +93,11 @@ class ProductController extends Controller
             'products' => $products,
             'filters' => [
                 'search' => $search,
+                'status' => $status,
+                'stock' => $stock,
+            ],
+            'filterOptions' => [
+                'lowStockThreshold' => self::LOW_STOCK_THRESHOLD,
             ],
         ]);
     }

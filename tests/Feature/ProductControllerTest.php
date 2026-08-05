@@ -179,7 +179,7 @@ class ProductControllerTest extends TestCase
             );
     }
 
-    public function test_search_query_is_preserved_in_pagination_urls(): void
+    public function test_active_filters_are_preserved_in_pagination_urls(): void
     {
         $user = User::factory()->create();
 
@@ -188,12 +188,16 @@ class ProductControllerTest extends TestCase
             ->for($user)
             ->create([
                 'name' => 'Lampa testowa',
+                'stock' => 3,
+                'is_active' => true,
             ]);
 
         $response = $this
             ->actingAs($user)
             ->get(route('products.index', [
                 'search' => 'lamp',
+                'status' => 'active',
+                'stock' => 'low',
             ]));
 
         $response
@@ -207,8 +211,246 @@ class ProductControllerTest extends TestCase
                     ->where(
                         'products.next_page_url',
                         fn (?string $url): bool => $url !== null
-                            && str_contains($url, 'search=lamp'),
+                            && str_contains($url, 'search=lamp')
+                            && str_contains($url, 'status=active')
+                            && str_contains($url, 'stock=low'),
                     ),
+            );
+    }
+
+    public function test_user_can_filter_products_by_status(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $activeProduct = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt aktywny',
+                'is_active' => true,
+            ]);
+
+        $inactiveProduct = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt nieaktywny',
+                'is_active' => false,
+            ]);
+
+        Product::factory()
+            ->for($otherUser)
+            ->create([
+                'name' => 'Aktywny produkt innego użytkownika',
+                'is_active' => true,
+            ]);
+
+        $activeResponse = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'status' => 'active',
+            ]));
+
+        $activeResponse
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.status', 'active')
+                    ->where('products.total', 1)
+                    ->has('products.data', 1)
+                    ->where('products.data.0.id', $activeProduct->id),
+            );
+
+        $inactiveResponse = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'status' => 'inactive',
+            ]));
+
+        $inactiveResponse
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.status', 'inactive')
+                    ->where('products.total', 1)
+                    ->has('products.data', 1)
+                    ->where('products.data.0.id', $inactiveProduct->id),
+            );
+    }
+
+    public function test_user_can_filter_products_by_stock_level(): void
+    {
+        $user = User::factory()->create();
+
+        $availableProduct = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt dostępny',
+                'stock' => 20,
+            ]);
+
+        $lowStockProduct = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt z niskim stanem',
+                'stock' => 5,
+            ]);
+
+        $outOfStockProduct = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt niedostępny',
+                'stock' => 0,
+            ]);
+
+        $availableResponse = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'stock' => 'available',
+            ]));
+
+        $availableResponse
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('filters.stock', 'available')
+                    ->where('filterOptions.lowStockThreshold', 5)
+                    ->where('products.total', 1)
+                    ->where(
+                        'products.data.0.id',
+                        $availableProduct->id,
+                    ),
+            );
+
+        $lowStockResponse = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'stock' => 'low',
+            ]));
+
+        $lowStockResponse
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('filters.stock', 'low')
+                    ->where('products.total', 1)
+                    ->where(
+                        'products.data.0.id',
+                        $lowStockProduct->id,
+                    ),
+            );
+
+        $outOfStockResponse = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'stock' => 'out',
+            ]));
+
+        $outOfStockResponse
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('filters.stock', 'out')
+                    ->where('products.total', 1)
+                    ->where(
+                        'products.data.0.id',
+                        $outOfStockProduct->id,
+                    ),
+            );
+    }
+
+    public function test_user_can_combine_search_status_and_stock_filters(): void
+    {
+        $user = User::factory()->create();
+
+        $matchingProduct = Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa magazynowa',
+                'sku' => 'LAMP-001',
+                'description' => 'Oświetlenie techniczne.',
+                'stock' => 3,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa nieaktywna',
+                'sku' => 'LAMP-002',
+                'stock' => 3,
+                'is_active' => false,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa z dużym stanem',
+                'sku' => 'LAMP-003',
+                'stock' => 20,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Krzesło magazynowe',
+                'sku' => 'CHAIR-001',
+                'stock' => 3,
+                'is_active' => true,
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'search' => 'lampa',
+                'status' => 'active',
+                'stock' => 'low',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.search', 'lampa')
+                    ->where('filters.status', 'active')
+                    ->where('filters.stock', 'low')
+                    ->where('products.total', 1)
+                    ->has('products.data', 1)
+                    ->where(
+                        'products.data.0.id',
+                        $matchingProduct->id,
+                    ),
+            );
+    }
+
+    public function test_invalid_product_filters_are_ignored(): void
+    {
+        $user = User::factory()->create();
+
+        Product::factory()
+            ->count(2)
+            ->for($user)
+            ->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'status' => 'unknown',
+                'stock' => 'invalid',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.status', '')
+                    ->where('filters.stock', '')
+                    ->where('products.total', 2)
+                    ->has('products.data', 2),
             );
     }
 
