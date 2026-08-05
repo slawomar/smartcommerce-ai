@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { route } from '../../../../vendor/tightenco/ziggy';
-import { ref } from 'vue';
+import { route } from 'ziggy-js';
+import { ref, watch } from 'vue';
 
 interface Product {
     id: number;
@@ -23,9 +23,53 @@ interface PaginatedProducts {
     to: number | null;
 }
 
-defineProps<{
+interface ProductFilters {
+    search: string;
+}
+
+const props = defineProps<{
     products: PaginatedProducts;
+    filters: ProductFilters;
 }>();
+
+const search = ref(props.filters.search);
+
+watch(
+    () => props.filters.search,
+    (value) => {
+        search.value = value;
+    },
+);
+
+const submitSearch = (): void => {
+    const normalizedSearch = search.value.trim();
+
+    router.get(
+        route('products.index'),
+        normalizedSearch !== ''
+            ? { search: normalizedSearch }
+            : {},
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        },
+    );
+};
+
+const clearSearch = (): void => {
+    search.value = '';
+
+    router.get(
+        route('products.index'),
+        {},
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        },
+    );
+};
 
 const formatPrice = (price: string): string => {
     return new Intl.NumberFormat('pl-PL', {
@@ -81,8 +125,15 @@ const deleteProduct = (product: Product): void => {
                     </h1>
 
                     <p class="mt-1 text-sm text-gray-600">
-                        Produkty przypisane do zalogowanego użytkownika:
-                        {{ products.total }}
+                        <template v-if="filters.search">
+                            Wyniki wyszukiwania dla „{{ filters.search }}”:
+                            {{ products.total }}
+                        </template>
+
+                        <template v-else>
+                            Produkty przypisane do zalogowanego użytkownika:
+                            {{ products.total }}
+                        </template>
                     </p>
                 </div>
 
@@ -103,17 +154,78 @@ const deleteProduct = (product: Product): void => {
                 </div>
             </header>
 
+            <form
+                class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                @submit.prevent="submitSearch"
+            >
+                <label
+                    for="product-search"
+                    class="mb-2 block text-sm font-medium text-gray-700"
+                >
+                    Wyszukaj produkt
+                </label>
+
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <input
+                        id="product-search"
+                        v-model="search"
+                        type="search"
+                        name="search"
+                        placeholder="Nazwa, SKU lub opis produktu"
+                        autocomplete="off"
+                        class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                    />
+
+                    <button
+                        type="submit"
+                        class="rounded-md bg-gray-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
+                    >
+                        Szukaj
+                    </button>
+
+                    <button
+                        v-if="filters.search"
+                        type="button"
+                        class="rounded-md border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                        @click="clearSearch"
+                    >
+                        Wyczyść
+                    </button>
+                </div>
+            </form>
+
             <div
                 v-if="products.data.length === 0"
                 class="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center"
             >
-                <h2 class="text-lg font-medium">
-                    Brak produktów
-                </h2>
+                <template v-if="filters.search">
+                    <h2 class="text-lg font-medium">
+                        Brak wyników
+                    </h2>
 
-                <p class="mt-2 text-sm text-gray-600">
-                    W katalogu nie ma jeszcze żadnych produktów.
-                </p>
+                    <p class="mt-2 text-sm text-gray-600">
+                        Nie znaleziono produktów pasujących do frazy
+                        „{{ filters.search }}”.
+                    </p>
+
+                    <button
+                        type="button"
+                        class="mt-4 text-sm font-medium text-gray-700 underline hover:text-gray-950"
+                        @click="clearSearch"
+                    >
+                        Wyczyść wyszukiwanie
+                    </button>
+                </template>
+
+                <template v-else>
+                    <h2 class="text-lg font-medium">
+                        Brak produktów
+                    </h2>
+
+                    <p class="mt-2 text-sm text-gray-600">
+                        W katalogu nie ma jeszcze żadnych produktów.
+                    </p>
+                </template>
             </div>
 
             <div
