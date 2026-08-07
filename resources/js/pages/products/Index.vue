@@ -21,6 +21,9 @@ interface PaginatedProducts {
     total: number;
     from: number | null;
     to: number | null;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+    links: PaginationLink[];
 }
 
 interface ProductFilters {
@@ -33,6 +36,12 @@ interface ProductFilters {
 
 interface ProductFilterOptions {
     lowStockThreshold: number;
+}
+
+interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
 }
 
 const props = defineProps<{
@@ -72,6 +81,10 @@ const hasActiveFilters = computed(() => {
         || props.filters.sort !== 'created_at'
         || props.filters.direction !== 'desc'
     );
+});
+
+const pageLinks = computed(() => {
+    return props.products.links.slice(1, -1);
 });
 
 const buildFilterQuery = (): Record<string, string> => {
@@ -538,11 +551,80 @@ const deleteProduct = (product: Product): void => {
                 </div>
 
                 <footer
-                    class="border-t border-gray-200 px-4 py-3 text-sm text-gray-600"
+                    class="flex flex-col gap-4 border-t border-gray-200 px-4 py-4 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between"
                 >
-                    Wyświetlono
-                    {{ products.from }}–{{ products.to }}
-                    z {{ products.total }} produktów
+                    <div>
+                        Wyświetlono
+                        {{ products.from }}–{{ products.to }}
+                        z {{ products.total }} produktów
+                    </div>
+
+                    <nav
+                        v-if="products.last_page > 1"
+                        class="flex flex-wrap items-center gap-1"
+                        aria-label="Paginacja produktów"
+                    >
+                        <Link
+                            v-if="products.prev_page_url"
+                            :href="products.prev_page_url"
+                            preserve-scroll
+                            preserve-state
+                            class="rounded-md border border-gray-300 bg-white px-3 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
+                        >
+                            Poprzednia
+                        </Link>
+
+                        <span
+                            v-else
+                            class="cursor-not-allowed rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-400"
+                        >
+                            Poprzednia
+                        </span>
+
+                        <template
+                            v-for="link in pageLinks"
+                            :key="link.label"
+                        >
+                            <Link
+                                v-if="link.url"
+                                :href="link.url"
+                                preserve-scroll
+                                preserve-state
+                                class="min-w-10 rounded-md border px-3 py-2 text-center font-medium transition"
+                                :class="
+                                    link.active
+                                        ? 'border-gray-900 bg-gray-900 text-white'
+                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                "
+                            >
+                                {{ link.label }}
+                            </Link>
+
+                            <span
+                                v-else
+                                class="px-2 py-2 text-gray-400"
+                            >
+                                {{ link.label }}
+                            </span>
+                        </template>
+
+                        <Link
+                            v-if="products.next_page_url"
+                            :href="products.next_page_url"
+                            preserve-scroll
+                            preserve-state
+                            class="rounded-md border border-gray-300 bg-white px-3 py-2 font-medium text-gray-700 transition hover:bg-gray-50"
+                        >
+                            Następna
+                        </Link>
+
+                        <span
+                            v-else
+                            class="cursor-not-allowed rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-gray-400"
+                        >
+                            Następna
+                        </span>
+                    </nav>
                 </footer>
             </div>
         </div>
