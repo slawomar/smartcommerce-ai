@@ -27,6 +27,8 @@ interface ProductFilters {
     search: string;
     status: string;
     stock: string;
+    sort: string;
+    direction: string;
 }
 
 interface ProductFilterOptions {
@@ -42,17 +44,23 @@ const props = defineProps<{
 const search = ref(props.filters.search);
 const status = ref(props.filters.status);
 const stock = ref(props.filters.stock);
+const sort = ref(props.filters.sort);
+const direction = ref(props.filters.direction);
 
 watch(
     () => [
         props.filters.search,
         props.filters.status,
         props.filters.stock,
+        props.filters.sort,
+        props.filters.direction,
     ] as const,
-    ([searchValue, statusValue, stockValue]) => {
+    ([searchValue, statusValue, stockValue, sortValue, directionValue, ]) => {
         search.value = searchValue;
         status.value = statusValue;
         stock.value = stockValue;
+        sort.value = sortValue;
+        direction.value = directionValue;
     },
 );
 
@@ -61,6 +69,8 @@ const hasActiveFilters = computed(() => {
         props.filters.search !== ''
         || props.filters.status !== ''
         || props.filters.stock !== ''
+        || props.filters.sort !== 'created_at'
+        || props.filters.direction !== 'desc'
     );
 });
 
@@ -78,6 +88,14 @@ const buildFilterQuery = (): Record<string, string> => {
 
     if (stock.value !== '') {
         query.stock = stock.value;
+    }
+
+    if (sort.value !== 'created_at') {
+        query.sort = sort.value;
+    }
+
+    if (direction.value !== 'desc') {
+        query.direction = direction.value;
     }
 
     return query;
@@ -99,6 +117,8 @@ const clearFilters = (): void => {
     search.value = '';
     status.value = '';
     stock.value = '';
+    sort.value = 'created_at';
+    direction.value = 'desc';
 
     router.get(
         route('products.index'),
@@ -203,7 +223,7 @@ const deleteProduct = (product: Product): void => {
                 class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
                 @submit.prevent="applyFilters"
             >
-                <div class="grid gap-4 lg:grid-cols-4">
+                <div class="grid gap-4 lg:grid-cols-6">
                     <div class="lg:col-span-2">
                         <label
                             for="product-search"
@@ -281,6 +301,62 @@ const deleteProduct = (product: Product): void => {
 
                             <option value="out">
                                 Brak na magazynie — 0 szt.
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            for="product-sort"
+                            class="mb-2 block text-sm font-medium text-gray-700"
+                        >
+                            Sortuj według
+                        </label>
+
+                        <select
+                            id="product-sort"
+                            v-model="sort"
+                            name="sort"
+                            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                        >
+                            <option value="created_at">
+                                Data utworzenia
+                            </option>
+
+                            <option value="name">
+                                Nazwa
+                            </option>
+
+                            <option value="price">
+                                Cena
+                            </option>
+
+                            <option value="stock">
+                                Stan magazynowy
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            for="product-direction"
+                            class="mb-2 block text-sm font-medium text-gray-700"
+                        >
+                            Kierunek
+                        </label>
+
+                        <select
+                            id="product-direction"
+                            v-model="direction"
+                            name="direction"
+                            class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                        >
+                            <option value="desc">
+                                Malejąco
+                            </option>
+
+                            <option value="asc">
+                                Rosnąco
                             </option>
                         </select>
                     </div>
