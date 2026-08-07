@@ -25,11 +25,25 @@ class ProductController extends Controller
         'out',
     ];
 
+    private const SORT_FIELDS = [
+        'created_at',
+        'name',
+        'price',
+        'stock',
+    ];
+
+    private const SORT_DIRECTIONS = [
+        'asc',
+        'desc',
+    ];
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('search', ''));
         $status = trim((string) $request->query('status', ''));
         $stock = trim((string) $request->query('stock', ''));
+        $sort = trim((string) $request->query('sort', 'created_at'));
+        $direction = trim((string) $request->query('direction', 'desc'));
 
         if (! in_array($status, self::STATUS_FILTERS, true)) {
             $status = '';
@@ -37,6 +51,14 @@ class ProductController extends Controller
 
         if (! in_array($stock, self::STOCK_FILTERS, true)) {
             $stock = '';
+        }
+
+        if (! in_array($sort, self::SORT_FIELDS, true)) {
+            $sort = 'created_at';
+        }
+
+        if (! in_array($direction, self::SORT_DIRECTIONS, true)) {
+            $direction = 'desc';
         }
 
         $products = $request->user()
@@ -85,7 +107,7 @@ class ProductController extends Controller
                 $stock === 'out',
                 fn ($query) => $query->where('stock', 0),
             )
-            ->latest()
+            ->orderBy($sort, $direction)
             ->paginate(10)
             ->withQueryString();
 
@@ -95,6 +117,8 @@ class ProductController extends Controller
                 'search' => $search,
                 'status' => $status,
                 'stock' => $stock,
+                'sort' => $sort,
+                'direction' => $direction,
             ],
             'filterOptions' => [
                 'lowStockThreshold' => self::LOW_STOCK_THRESHOLD,

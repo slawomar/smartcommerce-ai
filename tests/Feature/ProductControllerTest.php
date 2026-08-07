@@ -694,4 +694,173 @@ class ProductControllerTest extends TestCase
             'sku' => 'OWNER-DELETE-001',
         ]);
     }
+
+    public function test_user_can_sort_products_by_name(): void
+    {
+        $user = User::factory()->create();
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Zegar',
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Biurko',
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa',
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'sort' => 'name',
+                'direction' => 'asc',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.sort', 'name')
+                    ->where('filters.direction', 'asc')
+                    ->where('products.data.0.name', 'Biurko')
+                    ->where('products.data.1.name', 'Lampa')
+                    ->where('products.data.2.name', 'Zegar'),
+            );
+    }
+
+    public function test_user_can_sort_products_by_price_descending(): void
+    {
+        $user = User::factory()->create();
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt tani',
+                'price' => 100,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt drogi',
+                'price' => 500,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Produkt średni',
+                'price' => 250,
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'sort' => 'price',
+                'direction' => 'desc',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('filters.sort', 'price')
+                    ->where('filters.direction', 'desc')
+                    ->where('products.data.0.name', 'Produkt drogi')
+                    ->where('products.data.1.name', 'Produkt średni')
+                    ->where('products.data.2.name', 'Produkt tani'),
+            );
+    }
+
+    public function test_invalid_sorting_values_fall_back_to_defaults(): void
+    {
+        $user = User::factory()->create();
+
+        Product::factory()
+            ->count(2)
+            ->for($user)
+            ->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'sort' => 'user_id',
+                'direction' => 'invalid',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->component('products/Index')
+                    ->where('filters.sort', 'created_at')
+                    ->where('filters.direction', 'desc')
+                    ->where('products.total', 2),
+            );
+    }
+
+    public function test_sorting_can_be_combined_with_product_filters(): void
+    {
+        $user = User::factory()->create();
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa tańsza',
+                'sku' => 'LAMP-001',
+                'price' => 100,
+                'stock' => 3,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa droższa',
+                'sku' => 'LAMP-002',
+                'price' => 300,
+                'stock' => 2,
+                'is_active' => true,
+            ]);
+
+        Product::factory()
+            ->for($user)
+            ->create([
+                'name' => 'Lampa nieaktywna',
+                'sku' => 'LAMP-003',
+                'price' => 500,
+                'stock' => 2,
+                'is_active' => false,
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('products.index', [
+                'search' => 'lampa',
+                'status' => 'active',
+                'stock' => 'low',
+                'sort' => 'price',
+                'direction' => 'desc',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertInertia(
+                fn (Assert $page) => $page
+                    ->where('products.total', 2)
+                    ->where('products.data.0.name', 'Lampa droższa')
+                    ->where('products.data.1.name', 'Lampa tańsza')
+                    ->where('filters.sort', 'price')
+                    ->where('filters.direction', 'desc'),
+            );
+    }
 }
