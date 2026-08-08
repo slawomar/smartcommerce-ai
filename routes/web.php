@@ -2,12 +2,16 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PublicCatalogController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
+
+Route::get('/catalog', PublicCatalogController::class)
+    ->name('catalog.index');
 
 Route::get('dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
