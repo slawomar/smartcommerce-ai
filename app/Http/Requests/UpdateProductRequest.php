@@ -62,6 +62,18 @@ class UpdateProductRequest extends FormRequest
                 'max:5000',
             ],
 
+            'image' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:5120',
+            ],
+
+            'remove_image' => [
+                'nullable',
+                'boolean',
+            ],
+
             'price' => [
                 'required',
                 'numeric',
@@ -97,6 +109,12 @@ class UpdateProductRequest extends FormRequest
             'sku.unique' => 'Produkt z takim SKU już istnieje w Twoim katalogu.',
 
             'description.max' => 'Opis może mieć maksymalnie 5000 znaków.',
+
+            'image.image' => 'Wybrany plik musi być obrazem.',
+            'image.mimes' => 'Zdjęcie musi być w formacie JPG, JPEG, PNG lub WebP.',
+            'image.max' => 'Zdjęcie może mieć maksymalnie 5 MB.',
+
+            'remove_image.boolean' => 'Opcja usunięcia zdjęcia ma nieprawidłową wartość.',
 
             'price.required' => 'Podaj cenę produktu.',
             'price.numeric' => 'Cena musi być liczbą.',

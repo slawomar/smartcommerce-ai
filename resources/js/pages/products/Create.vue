@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { route } from '../../../../vendor/tightenco/ziggy';
+import { route } from 'ziggy-js';
+import { onBeforeUnmount, ref } from 'vue';
 
 type ProductForm = {
     name: string;
     sku: string;
     description: string;
+    image: File | null;
     price: string;
     stock: number;
     is_active: boolean;
@@ -15,13 +17,40 @@ const form = useForm<ProductForm>({
     name: '',
     sku: '',
     description: '',
+    image: null,
     price: '',
     stock: 0,
     is_active: true,
 });
 
+const imagePreview = ref<string | null>(null);
+
+const revokePreview = (): void => {
+    if (imagePreview.value?.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview.value);
+    }
+};
+
+const handleImageChange = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    revokePreview();
+
+    form.image = file;
+    imagePreview.value = file
+        ? URL.createObjectURL(file)
+        : null;
+};
+
+onBeforeUnmount(() => {
+    revokePreview();
+});
+
 const submit = (): void => {
-    form.post(route('products.store'));
+    form.post(route('products.store'), {
+        forceFormData: true,
+    });
 };
 </script>
 
@@ -138,6 +167,49 @@ const submit = (): void => {
                     >
                         {{ form.errors.description }}
                     </p>
+                </div>
+
+                <div>
+                    <label
+                        for="image"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Zdjęcie główne
+                    </label>
+
+                    <input
+                        id="image"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        @change="handleImageChange"
+                    />
+
+                    <p class="mt-2 text-xs text-gray-500">
+                        JPG, PNG lub WebP. Maksymalnie 5 MB.
+                    </p>
+
+                    <p
+                        v-if="form.errors.image"
+                        class="mt-1 text-sm text-red-600"
+                    >
+                        {{ form.errors.image }}
+                    </p>
+
+                    <div
+                        v-if="imagePreview"
+                        class="mt-4"
+                    >
+                        <p class="mb-2 text-sm font-medium text-gray-700">
+                            Podgląd
+                        </p>
+
+                        <img
+                            :src="imagePreview"
+                            alt="Podgląd zdjęcia produktu"
+                            class="h-48 w-48 rounded-lg border border-gray-200 object-cover"
+                        />
+                    </div>
                 </div>
 
                 <div class="grid gap-6 sm:grid-cols-2">

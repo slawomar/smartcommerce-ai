@@ -104,6 +104,7 @@ class PublicCatalogTest extends TestCase
                                 'id',
                                 'name',
                                 'sku',
+                                'image_path',
                                 'price',
                                 'stock',
                                 'created_at',

@@ -7,6 +7,7 @@ interface Product {
     id: number;
     name: string;
     sku: string;
+    image_path: string | null;
     price: string;
     stock: number;
     is_active: boolean;
@@ -438,6 +439,11 @@ const deleteProduct = (product: Product): void => {
                                 <th
                                     class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600"
                                 >
+                                    Zdjęcie
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600"
+                                >
                                     Nazwa
                                 </th>
 
@@ -485,6 +491,23 @@ const deleteProduct = (product: Product): void => {
                                 :key="product.id"
                                 class="hover:bg-gray-50"
                             >
+                                <td class="px-4 py-4">
+                                    <img
+                                        v-if="product.image_path"
+                                        :src="`/storage/${product.image_path}`"
+                                        :alt="product.name"
+                                        class="h-12 w-12 rounded-md border border-gray-200 object-cover"
+                                        loading="lazy"
+                                    />
+
+                                    <div
+                                        v-else
+                                        class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm font-semibold text-gray-400"
+                                    >
+                                        {{ product.name.charAt(0).toUpperCase() }}
+                                    </div>
+                                </td>
+
                                 <td class="px-4 py-4 font-medium">
                                     {{ product.name }}
                                 </td>

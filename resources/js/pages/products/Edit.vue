@@ -1,12 +1,26 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { route } from '../../../../vendor/tightenco/ziggy';
+import { route } from 'ziggy-js';
+import { onBeforeUnmount, ref } from 'vue';
 
 type Product = {
     id: number;
     name: string;
     sku: string;
     description: string | null;
+    image_path: string | null;
+    price: string;
+    stock: number;
+    is_active: boolean;
+};
+
+type ProductForm = {
+    _method: 'put';
+    name: string;
+    sku: string;
+    description: string;
+    image: File | null;
+    remove_image: boolean;
     price: string;
     stock: number;
     is_active: boolean;
@@ -16,18 +30,57 @@ const props = defineProps<{
     product: Product;
 }>();
 
-const form = useForm({
+const form = useForm<ProductForm>({
+    _method: 'put',
     name: props.product.name,
     sku: props.product.sku,
     description: props.product.description ?? '',
+    image: null,
+    remove_image: false,
     price: props.product.price,
     stock: props.product.stock,
     is_active: props.product.is_active,
 });
 
+const imagePreview = ref<string | null>(
+    props.product.image_path
+        ? `/storage/${props.product.image_path}`
+        : null,
+);
+
+const revokePreview = (): void => {
+    if (imagePreview.value?.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview.value);
+    }
+};
+
+const handleImageChange = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    revokePreview();
+
+    form.image = file;
+
+    if (file) {
+        form.remove_image = false;
+    }
+
+    imagePreview.value = file
+        ? URL.createObjectURL(file)
+        : props.product.image_path
+          ? `/storage/${props.product.image_path}`
+          : null;
+};
+
+onBeforeUnmount(() => {
+    revokePreview();
+});
+
 const submit = (): void => {
-    form.put(route('products.update', props.product.id), {
+    form.post(route('products.update', props.product.id), {
         preserveScroll: true,
+        forceFormData: true,
     });
 };
 </script>
@@ -145,6 +198,84 @@ const submit = (): void => {
                     >
                         {{ form.errors.description }}
                     </p>
+                </div>
+
+                <div>
+                    <label
+                        for="image"
+                        class="mb-2 block text-sm font-medium"
+                    >
+                        Zdjęcie główne
+                    </label>
+
+                    <input
+                        id="image"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+                        @change="handleImageChange"
+                    />
+
+                    <p class="mt-2 text-xs text-gray-500">
+                        JPG, PNG lub WebP. Maksymalnie 5 MB.
+                        Wybranie nowego zdjęcia zastąpi obecne.
+                    </p>
+
+                    <p
+                        v-if="form.errors.image"
+                        class="mt-1 text-sm text-red-600"
+                    >
+                        {{ form.errors.image }}
+                    </p>
+
+                    <div
+                        v-if="imagePreview && !form.remove_image"
+                        class="mt-4"
+                    >
+                        <p class="mb-2 text-sm font-medium text-gray-700">
+                            {{
+                                form.image
+                                    ? 'Podgląd nowego zdjęcia'
+                                    : 'Obecne zdjęcie'
+                            }}
+                        </p>
+
+                        <img
+                            :src="imagePreview"
+                            :alt="product.name"
+                            class="h-48 w-48 rounded-lg border border-gray-200 object-cover"
+                        />
+                    </div>
+
+                    <label
+                        v-if="product.image_path && !form.image"
+                        class="mt-4 flex items-center gap-3"
+                    >
+                        <input
+                            v-model="form.remove_image"
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-gray-300"
+                        />
+
+                        <span class="text-sm font-medium text-red-700">
+                            Usuń obecne zdjęcie
+                        </span>
+                    </label>
+
+                    <p
+                        v-if="form.remove_image"
+                        class="mt-3 text-sm text-red-600"
+                    >
+                        Zdjęcie zostanie usunięte po zapisaniu zmian.
+                    </p>
+
+                    <p
+                        v-if="!imagePreview && !form.remove_image"
+                        class="mt-3 text-sm text-gray-500"
+                    >
+                        Produkt nie ma jeszcze zdjęcia.
+                    </p>
+
                 </div>
 
                 <div class="grid gap-6 sm:grid-cols-2">

@@ -22,6 +22,7 @@ class PublicProductTest extends TestCase
                 'name' => 'Lampa publiczna',
                 'sku' => 'LAMP-PUBLIC-001',
                 'description' => 'Opis publicznego produktu.',
+                'image_path' => 'products/lamp.jpg',
                 'price' => '499.99',
                 'stock' => 4,
                 'is_active' => true,
@@ -42,6 +43,10 @@ class PublicProductTest extends TestCase
                     ->where(
                         'product.description',
                         'Opis publicznego produktu.',
+                    )
+                    ->where(
+                        'product.image_path',
+                        'products/lamp.jpg',
                     )
                     ->where('product.price', '499.99')
                     ->where('product.stock', 4),
@@ -98,6 +103,7 @@ class PublicProductTest extends TestCase
                                 'name',
                                 'sku',
                                 'description',
+                                'image_path',
                                 'price',
                                 'stock',
                                 'created_at',
