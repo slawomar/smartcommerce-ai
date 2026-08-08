@@ -172,7 +172,12 @@ const stockLabel = (stock: number): string => {
                                 <h2
                                     class="mt-1 text-lg font-semibold leading-snug"
                                 >
-                                    {{ product.name }}
+                                    <Link
+                                        :href="route('catalog.show', product.id)"
+                                        class="transition hover:text-gray-600"
+                                    >
+                                        {{ product.name }}
+                                    </Link>
                                 </h2>
                             </div>
 
@@ -206,6 +211,13 @@ const stockLabel = (stock: number): string => {
                                     {{ stockLabel(product.stock) }}
                                 </span>
                             </div>
+
+                            <Link
+                                :href="route('catalog.show', product.id)"
+                                class="mt-5 inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                            >
+                                Zobacz produkt
+                            </Link>
                         </div>
                     </article>
                 </div>
