@@ -7,6 +7,7 @@ interface Product {
     name: string;
     sku: string;
     description: string | null;
+    image_path: string | null;
     price: string;
     stock: number;
     created_at: string;
@@ -78,12 +79,24 @@ const stockLabel = (stock: number): string => {
                 class="mt-6 grid overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-2"
             >
                 <div
-                    class="flex min-h-80 items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50 p-10 lg:min-h-[520px]"
+                    class="flex min-h-80 items-center justify-center overflow-hidden bg-gradient-to-br from-gray-100 to-gray-50 lg:min-h-[520px]"
                 >
+                    <img
+                        v-if="product.image_path"
+                        :src="`/storage/${product.image_path}`"
+                        :alt="product.name"
+                        class="h-full max-h-[620px] w-full object-contain p-8"
+                    />
+
                     <div
-                        class="flex h-32 w-32 items-center justify-center rounded-3xl bg-white text-5xl font-bold text-gray-400 shadow-sm"
+                        v-else
+                        class="flex h-full min-h-80 w-full items-center justify-center p-10 lg:min-h-[520px]"
                     >
-                        {{ product.name.charAt(0).toUpperCase() }}
+                        <div
+                            class="flex h-32 w-32 items-center justify-center rounded-3xl bg-white text-5xl font-bold text-gray-400 shadow-sm"
+                        >
+                            {{ product.name.charAt(0).toUpperCase() }}
+                        </div>
                     </div>
                 </div>
 

@@ -18,6 +18,7 @@ class PublicProductController extends Controller
                 'name',
                 'sku',
                 'description',
+                'image_path',
                 'price',
                 'stock',
                 'created_at',

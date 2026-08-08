@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -30,6 +32,7 @@ class ProductControllerTest extends TestCase
             ->create([
                 'name' => 'Produkt użytkownika',
                 'sku' => 'OWN-001',
+                'image_path' => 'products/own-product.jpg',
             ]);
 
         Product::factory()
@@ -54,7 +57,12 @@ class ProductControllerTest extends TestCase
                     ->where(
                         'products.data.0.name',
                         'Produkt użytkownika',
+                    )
+                    ->where(
+                        'products.data.0.image_path',
+                        'products/own-product.jpg',
                     ),
+
             );
     }
 
@@ -862,5 +870,212 @@ class ProductControllerTest extends TestCase
                     ->where('filters.sort', 'price')
                     ->where('filters.direction', 'desc'),
             );
+    }
+
+    public function test_user_can_create_product_with_image(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $image = UploadedFile::fake()
+            ->image('lamp.jpg', 1200, 800)
+            ->size(1024);
+
+        $response = $this
+            ->actingAs($user)
+            ->post(route('products.store'), [
+                'name' => 'Lampa ze zdjęciem',
+                'sku' => 'LAMP-IMAGE-001',
+                'description' => 'Produkt ze zdjęciem.',
+                'image' => $image,
+                'price' => '499.99',
+                'stock' => 5,
+                'is_active' => true,
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('products.index'));
+
+        $product = Product::query()
+            ->where('user_id', $user->id)
+            ->where('sku', 'LAMP-IMAGE-001')
+            ->firstOrFail();
+
+        $this->assertNotNull($product->image_path);
+        $this->assertStringStartsWith(
+            'products/',
+            $product->image_path,
+        );
+
+        Storage::disk('public')->assertExists(
+            $product->image_path,
+        );
+    }
+
+    public function test_product_image_must_be_a_supported_image(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->create(
+            'document.pdf',
+            100,
+            'application/pdf',
+        );
+
+        $response = $this
+            ->actingAs($user)
+            ->from(route('products.create'))
+            ->post(route('products.store'), [
+                'name' => 'Produkt testowy',
+                'sku' => 'IMAGE-VALIDATION-001',
+                'description' => null,
+                'image' => $file,
+                'price' => '100.00',
+                'stock' => 5,
+                'is_active' => true,
+            ]);
+
+        $response
+            ->assertRedirect(route('products.create'))
+            ->assertSessionHasErrors('image');
+
+        $this->assertDatabaseMissing('products', [
+            'user_id' => $user->id,
+            'sku' => 'IMAGE-VALIDATION-001',
+        ]);
+    }
+
+    public function test_user_can_replace_product_image(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        Storage::disk('public')->put(
+            'products/old-image.jpg',
+            'old image',
+        );
+
+        $product = Product::factory()
+            ->for($user)
+            ->create([
+                'sku' => 'REPLACE-IMAGE-001',
+                'image_path' => 'products/old-image.jpg',
+            ]);
+
+        $newImage = UploadedFile::fake()
+            ->image('new-image.jpg', 1200, 800)
+            ->size(1024);
+
+        $response = $this
+            ->actingAs($user)
+            ->put(route('products.update', $product), [
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'description' => $product->description,
+                'image' => $newImage,
+                'price' => $product->price,
+                'stock' => $product->stock,
+                'is_active' => $product->is_active,
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('products.index'));
+
+        $product->refresh();
+
+        $this->assertNotNull($product->image_path);
+        $this->assertNotSame(
+            'products/old-image.jpg',
+            $product->image_path,
+        );
+
+        Storage::disk('public')->assertExists(
+            $product->image_path,
+        );
+
+        Storage::disk('public')->assertMissing(
+            'products/old-image.jpg',
+        );
+    }
+
+    public function test_deleting_product_also_deletes_its_image(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        Storage::disk('public')->put(
+            'products/product-image.jpg',
+            'image',
+        );
+
+        $product = Product::factory()
+            ->for($user)
+            ->create([
+                'image_path' => 'products/product-image.jpg',
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->delete(route('products.destroy', $product));
+
+        $response->assertRedirect(route('products.index'));
+
+        $this->assertDatabaseMissing('products', [
+            'id' => $product->id,
+        ]);
+
+        Storage::disk('public')->assertMissing(
+            'products/product-image.jpg',
+        );
+    }
+
+    public function test_user_can_remove_product_image(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        Storage::disk('public')->put(
+            'products/image-to-remove.jpg',
+            'image',
+        );
+
+        $product = Product::factory()
+            ->for($user)
+            ->create([
+                'image_path' => 'products/image-to-remove.jpg',
+            ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->post(route('products.update', $product), [
+                '_method' => 'put',
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'description' => $product->description,
+                'remove_image' => true,
+                'price' => $product->price,
+                'stock' => $product->stock,
+                'is_active' => $product->is_active,
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('products.index'));
+
+        $product->refresh();
+
+        $this->assertNull($product->image_path);
+
+        Storage::disk('public')->assertMissing(
+            'products/image-to-remove.jpg',
+        );
     }
 }

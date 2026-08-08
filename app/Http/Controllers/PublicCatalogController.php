@@ -16,6 +16,7 @@ class PublicCatalogController extends Controller
                 'id',
                 'name',
                 'sku',
+                'image_path',
                 'price',
                 'stock',
                 'created_at',

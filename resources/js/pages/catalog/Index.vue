@@ -7,6 +7,7 @@ interface Product {
     id: number;
     name: string;
     sku: string;
+    image_path: string | null;
     price: string;
     stock: number;
     created_at: string;
@@ -148,16 +149,25 @@ const stockLabel = (stock: number): string => {
                         class="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                         <div
-                            class="flex aspect-[4/3] items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50"
+                            class="aspect-[4/3] overflow-hidden bg-gradient-to-br from-gray-100 to-gray-50"
                         >
+                            <img
+                                v-if="product.image_path"
+                                :src="`/storage/${product.image_path}`"
+                                :alt="product.name"
+                                class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                loading="lazy"
+                            />
+
                             <div
-                                class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-2xl font-bold text-gray-400 shadow-sm"
+                                v-else
+                                class="flex h-full w-full items-center justify-center"
                             >
-                                {{
-                                    product.name
-                                        .charAt(0)
-                                        .toUpperCase()
-                                }}
+                                <div
+                                    class="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-2xl font-bold text-gray-400 shadow-sm"
+                                >
+                                    {{ product.name.charAt(0).toUpperCase() }}
+                                </div>
                             </div>
                         </div>
 

@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -67,6 +68,7 @@ class ProductController extends Controller
                 'id',
                 'name',
                 'sku',
+                'image_path',
                 'price',
                 'stock',
                 'is_active',
@@ -134,9 +136,19 @@ class ProductController extends Controller
     public function store(
         StoreProductRequest $request,
     ): RedirectResponse {
+        $data = $request->validated();
+
+        unset($data['image']);
+
+        if ($request->hasFile('image')) {
+            $data['image_path'] = $request
+                ->file('image')
+                ->store('products', 'public');
+        }
+
         $request->user()
             ->products()
-            ->create($request->validated());
+            ->create($data);
 
         return to_route('products.index');
     }
@@ -156,6 +168,7 @@ class ProductController extends Controller
                 'name',
                 'sku',
                 'description',
+                'image_path',
                 'price',
                 'stock',
                 'is_active',
@@ -167,7 +180,44 @@ class ProductController extends Controller
         UpdateProductRequest $request,
         Product $product,
     ): RedirectResponse {
-        $product->update($request->validated());
+        $data = $request->validated();
+
+        $removeImage = (bool) ($data['remove_image'] ?? false);
+
+        unset(
+            $data['image'],
+            $data['remove_image'],
+        );
+
+        if ($request->hasFile('image')) {
+            $oldImagePath = $product->image_path;
+
+            $data['image_path'] = $request
+                ->file('image')
+                ->store('products', 'public');
+
+            $product->update($data);
+
+            if ($oldImagePath !== null) {
+                Storage::disk('public')->delete($oldImagePath);
+            }
+
+            return to_route('products.index');
+        }
+
+        if ($removeImage && $product->image_path !== null) {
+            $oldImagePath = $product->image_path;
+
+            $data['image_path'] = null;
+
+            $product->update($data);
+
+            Storage::disk('public')->delete($oldImagePath);
+
+            return to_route('products.index');
+        }
+
+        $product->update($data);
 
         return to_route('products.index');
     }
@@ -181,7 +231,13 @@ class ProductController extends Controller
             403,
         );
 
+        $imagePath = $product->image_path;
+
         $product->delete();
+
+        if ($imagePath !== null) {
+            Storage::disk('public')->delete($imagePath);
+        }
 
         return to_route('products.index');
     }
